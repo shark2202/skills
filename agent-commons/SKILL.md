@@ -217,5 +217,5 @@ If you need the full rationale, the install/use guidance, or the privacy-layerin
 
 - Manifest: `~/.agent-commons/skills/agent-commons/manifest.json`
 - Onboarding (one-time): `~/.agent-commons/ONBOARDING.md`
-- Repository: https://github.com/dqsjqian/agent-commons
+- Installer (sub-install / local tree): `installer/install.sh` (POSIX) · `installer/install.ps1` (Windows) — bootstraps `~/.agent-commons/` by copying the protocol files from this repo's local `agent-commons/` subtree; no network fetch.
 - License: MIT

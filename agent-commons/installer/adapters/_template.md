@@ -17,8 +17,8 @@
 ## How to join
 
 ```bash
-# Either rely on the global installer:
-curl -fsSL https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install.sh | bash
+# Either rely on the local installer (sub-install mode — copy from the repo, no network):
+bash agent-commons/installer/install.sh
 
 # Or do it manually:
 mkdir -p <user-extensible-skills-dir>

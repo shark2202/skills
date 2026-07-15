@@ -50,9 +50,9 @@ You must see at least: `identity/  rules/  toolchain/  projects/  log/  handoff/
 
 If the directory is missing, the user has not run the installer yet. Tell them:
 
-> "I need you to run the Agent Commons installer first:
->   - macOS/Linux: `curl -fsSL https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install.sh | bash`
->   - Windows: `iwr -useb https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install.ps1 | iex`"
+> "I need you to run the Agent Commons installer first — it lives in your local agent-commons repo checkout (sub-install mode, no network):
+>   - macOS/Linux: from the repo root, `bash agent-commons/installer/install.sh`
+>   - Windows: from the repo root, `powershell -ExecutionPolicy Bypass -File agent-commons\installer\install.ps1`"
 
 Then stop. Re-run this onboarding after they've installed.
 

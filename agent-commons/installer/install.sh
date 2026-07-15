@@ -3,30 +3,49 @@
 #
 # Windows users: use install.ps1 instead.
 #
-# Usage:
-#   curl -fsSL https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install.sh | bash
-# or:
+# Usage (sub-install mode — copy from the local repo, no network):
+#   bash agent-commons/installer/install.sh
+# or, from inside the installer dir:
 #   bash install.sh
 #
-# This script bootstraps ~/.agent-commons/ and prints the agent-onboarding
-# message. It does NOT touch any AI agent's home directory — agents join
-# the system on their own by reading ONBOARDING.md (one-time joining flow);
-# afterwards they use skills/agent-commons/SKILL.md as their runtime capability.
+# This script bootstraps ~/.agent-commons/ by copying the protocol files from
+# the agent-commons subtree of this repository (the files co-located next to
+# this script). It does NOT fetch anything from the network and does NOT touch
+# any AI agent's home directory — agents join the system on their own by
+# reading ONBOARDING.md (one-time joining flow); afterwards they use
+# skills/agent-commons/SKILL.md as their runtime capability.
 #
 # Idempotent: re-running upgrades the protocol skeleton without touching your data.
 
 set -e
 
 CENTRAL="$HOME/.agent-commons"
-REPO_RAW_URL="${AGENT_COMMONS_REPO:-https://raw.githubusercontent.com/dqsjqian/agent-commons/main}"
+
+# ── Locate the local source tree (sub-install mode) ────────────────
+# This script lives at <repo>/agent-commons/installer/install.sh.
+#   INSTALLER_DIR = this script's own dir    → ONBOARDING.md, CONVENTIONS.md, examples/
+#   AGENT_ROOT    = parent (agent-commons/)  → SKILL.md, manifest.json
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+INSTALLER_DIR="${AGENT_COMMONS_INSTALLER_DIR:-$SCRIPT_DIR}"
+AGENT_ROOT="$(cd "$INSTALLER_DIR/.." && pwd)"
+
+ONBOARDING_SRC="$INSTALLER_DIR/ONBOARDING.md"
+CONVENTIONS_SRC="$INSTALLER_DIR/CONVENTIONS.md"
+SKILL_SRC="$AGENT_ROOT/SKILL.md"
+MANIFEST_SRC="$AGENT_ROOT/manifest.json"
+EXAMPLES_DIR="$INSTALLER_DIR/examples"
+
+# Verify the local source files exist (visible — before the silent bootstrap).
+for f in "$ONBOARDING_SRC" "$CONVENTIONS_SRC" "$SKILL_SRC" "$MANIFEST_SRC"; do
+  if [ ! -f "$f" ]; then
+    echo "✗ Local source missing: $f" >&2
+    echo "  Sub-install mode: run this script from within the agent-commons repo." >&2
+    exit 1
+  fi
+done
 
 # ── Silent bootstrap ───────────────────────────────────────────────
 {
-  if ! command -v curl >/dev/null 2>&1; then
-    echo "✗ curl not found. Please install curl." >&2
-    exit 1
-  fi
-
   # Directory skeleton
   #   skills/<name>/        agent-loadable capabilities (this skill itself + future ones)
   #   skills_data/<name>/   per-skill persistent data (private to the owning skill)
@@ -35,26 +54,27 @@ REPO_RAW_URL="${AGENT_COMMONS_REPO:-https://raw.githubusercontent.com/dqsjqian/a
   #   tools/<name>/         shared scripts / utilities (CLI helpers, dotfiles, etc.)
   mkdir -p "$CENTRAL"/{skills/agent-commons,skills_data,mcp,plugins,tools,identity,rules,toolchain,projects,log/daily,log/decisions,log/archive,handoff/inbox,handoff/archive,handoff/shared-state}
 
-  # Protocol skeleton (always overwrite — controlled by this project)
-  curl -fsSL "$REPO_RAW_URL/ONBOARDING.md"                         -o "$CENTRAL/ONBOARDING.md"
-  curl -fsSL "$REPO_RAW_URL/CONVENTIONS.md"                        -o "$CENTRAL/CONVENTIONS.md"
-  curl -fsSL "$REPO_RAW_URL/skills/agent-commons/SKILL.md"         -o "$CENTRAL/skills/agent-commons/SKILL.md"
-  curl -fsSL "$REPO_RAW_URL/skills/agent-commons/manifest.json"    -o "$CENTRAL/skills/agent-commons/manifest.json"
+  # Protocol skeleton (always overwrite — controlled by this project; copied locally)
+  cp -f "$ONBOARDING_SRC"  "$CENTRAL/ONBOARDING.md"
+  cp -f "$CONVENTIONS_SRC" "$CENTRAL/CONVENTIONS.md"
+  cp -f "$SKILL_SRC"       "$CENTRAL/skills/agent-commons/SKILL.md"
+  cp -f "$MANIFEST_SRC"   "$CENTRAL/skills/agent-commons/manifest.json"
 
   # User-owned templates (only seed if missing — never overwrite your edits)
   seed_if_missing() {
     local target="$1"
-    local url="$2"
+    local src="$2"
     [ -f "$target" ] && return 0
-    curl -fsSL "$url" -o "$target" 2>/dev/null || true
+    [ -f "$src" ] || return 0
+    cp -f "$src" "$target"
   }
-  seed_if_missing "$CENTRAL/identity/profile.md"   "$REPO_RAW_URL/examples/identity-profile.template.md"
-  seed_if_missing "$CENTRAL/identity/ROUTINE.md"   "$REPO_RAW_URL/examples/identity-routine.template.md"
-  seed_if_missing "$CENTRAL/rules/universal.md"    "$REPO_RAW_URL/examples/rules-universal.template.md"
-  seed_if_missing "$CENTRAL/rules/public-repo.md"  "$REPO_RAW_URL/examples/rules-public-repo.template.md"
-  seed_if_missing "$CENTRAL/rules/file-cleanup.md" "$REPO_RAW_URL/examples/rules-file-cleanup.template.md"
-  seed_if_missing "$CENTRAL/rules/safety.md"       "$REPO_RAW_URL/examples/rules-safety.template.md"
-  seed_if_missing "$CENTRAL/toolchain/paths.md"    "$REPO_RAW_URL/examples/toolchain-paths.template.md"
+  seed_if_missing "$CENTRAL/identity/profile.md"    "$EXAMPLES_DIR/identity-profile.template.md"
+  seed_if_missing "$CENTRAL/identity/ROUTINE.md"    "$EXAMPLES_DIR/identity-routine.template.md"
+  seed_if_missing "$CENTRAL/rules/universal.md"     "$EXAMPLES_DIR/rules-universal.template.md"
+  seed_if_missing "$CENTRAL/rules/public-repo.md"   "$EXAMPLES_DIR/rules-public-repo.template.md"
+  seed_if_missing "$CENTRAL/rules/file-cleanup.md"  "$EXAMPLES_DIR/rules-file-cleanup.template.md"
+  seed_if_missing "$CENTRAL/rules/safety.md"        "$EXAMPLES_DIR/rules-safety.template.md"
+  seed_if_missing "$CENTRAL/toolchain/paths.md"     "$EXAMPLES_DIR/toolchain-paths.template.md"
 
   # Initial state files
   if [ ! -f "$CENTRAL/handoff/shared-state/current-focus.md" ]; then

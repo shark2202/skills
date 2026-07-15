@@ -1,10 +1,9 @@
 ﻿# Agent Commons — Windows installer (PowerShell)
 #
-# Usage (one-shot):
-#   iwr -useb https://raw.githubusercontent.com/dqsjqian/agent-commons/main/install.ps1 | iex
-#
-# Or:
+# Usage (sub-install mode — copy from the local repo, no network):
 #   .\install.ps1
+# or from the repo root:
+#   powershell -ExecutionPolicy Bypass -File agent-commons\installer\install.ps1
 #
 # This script bootstraps %USERPROFILE%\.agent-commons\ and prints the
 # agent-onboarding message. It does NOT touch any AI agent's home directory —
@@ -25,7 +24,28 @@ try { chcp 65001 > $null } catch {}
 $ErrorActionPreference = 'Stop'
 
 $Central = Join-Path $env:USERPROFILE '.agent-commons'
-$RepoRawUrl = if ($env:AGENT_COMMONS_REPO) { $env:AGENT_COMMONS_REPO } else { 'https://raw.githubusercontent.com/dqsjqian/agent-commons/main' }
+# Sub-install mode: copy the protocol files from the local agent-commons
+# subtree of this repo (co-located next to this script). No network fetch.
+# This script lives at <repo>\agent-commons\installer\install.ps1.
+#   $InstallerDir = this script's own dir   → ONBOARDING.md, CONVENTIONS.md, examples\
+#   $AgentRoot    = parent (agent-commons\)  → SKILL.md, manifest.json
+$InstallerDir = $PSScriptRoot
+if (-not $InstallerDir) { $InstallerDir = Split-Path -Parent $MyInvocation.MyCommand.Path }
+$AgentRoot     = Split-Path -Parent $InstallerDir
+$OnboardingSrc  = Join-Path $InstallerDir 'ONBOARDING.md'
+$ConventionsSrc = Join-Path $InstallerDir 'CONVENTIONS.md'
+$SkillSrc       = Join-Path $AgentRoot    'SKILL.md'
+$ManifestSrc    = Join-Path $AgentRoot    'manifest.json'
+$ExamplesDir    = Join-Path $InstallerDir 'examples'
+
+# Verify local sources exist (visible — before the silent bootstrap).
+foreach ($src in @($OnboardingSrc, $ConventionsSrc, $SkillSrc, $ManifestSrc)) {
+    if (-not (Test-Path $src)) {
+        Write-Host "✗ Local source missing: $src" -ForegroundColor Red
+        Write-Host "  Sub-install mode: run this script from within the agent-commons repo." -ForegroundColor Red
+        exit 1
+    }
+}
 
 # ── Silent bootstrap ───────────────────────────────────────────────
 $null = & {
@@ -49,35 +69,30 @@ $null = & {
     }
 
     # Protocol skeleton (always overwrite — controlled by this project)
-    function Download-File {
-        param([string]$Url, [string]$Dest)
-        try {
-            Invoke-WebRequest -UseBasicParsing -Uri $Url -OutFile $Dest -ErrorAction Stop
-            return $true
-        } catch {
-            return $false
-        }
+    function Copy-File {
+        param([string]$Src, [string]$Dest)
+        Copy-Item -LiteralPath $Src -Destination $Dest -Force -ErrorAction Stop
     }
 
-    Download-File "$RepoRawUrl/ONBOARDING.md"                      (Join-Path $Central 'ONBOARDING.md')                          | Out-Null
-    Download-File "$RepoRawUrl/CONVENTIONS.md"                     (Join-Path $Central 'CONVENTIONS.md')                         | Out-Null
-    Download-File "$RepoRawUrl/skills/agent-commons/SKILL.md"      (Join-Path $Central 'skills\agent-commons\SKILL.md')      | Out-Null
-    Download-File "$RepoRawUrl/skills/agent-commons/manifest.json" (Join-Path $Central 'skills\agent-commons\manifest.json') | Out-Null
+    Copy-File $OnboardingSrc  (Join-Path $Central 'ONBOARDING.md')
+    Copy-File $ConventionsSrc (Join-Path $Central 'CONVENTIONS.md')
+    Copy-File $SkillSrc       (Join-Path $Central 'skills\agent-commons\SKILL.md')
+    Copy-File $ManifestSrc    (Join-Path $Central 'skills\agent-commons\manifest.json')
 
     # User-owned templates (only seed if missing)
     function Seed-If-Missing {
-        param([string]$Target, [string]$Url)
+        param([string]$Target, [string]$Src)
         if (-not (Test-Path $Target)) {
-            Download-File $Url $Target | Out-Null
+            if (Test-Path $Src) { Copy-Item -LiteralPath $Src -Destination $Target -Force -ErrorAction Stop | Out-Null }
         }
     }
-    Seed-If-Missing (Join-Path $Central 'identity\profile.md')   "$RepoRawUrl/examples/identity-profile.template.md"
-    Seed-If-Missing (Join-Path $Central 'identity\ROUTINE.md')   "$RepoRawUrl/examples/identity-routine.template.md"
-    Seed-If-Missing (Join-Path $Central 'rules\universal.md')    "$RepoRawUrl/examples/rules-universal.template.md"
-    Seed-If-Missing (Join-Path $Central 'rules\public-repo.md')  "$RepoRawUrl/examples/rules-public-repo.template.md"
-    Seed-If-Missing (Join-Path $Central 'rules\file-cleanup.md') "$RepoRawUrl/examples/rules-file-cleanup.template.md"
-    Seed-If-Missing (Join-Path $Central 'rules\safety.md')       "$RepoRawUrl/examples/rules-safety.template.md"
-    Seed-If-Missing (Join-Path $Central 'toolchain\paths.md')    "$RepoRawUrl/examples/toolchain-paths.template.md"
+    Seed-If-Missing (Join-Path $Central 'identity\profile.md')    (Join-Path $ExamplesDir 'identity-profile.template.md')
+    Seed-If-Missing (Join-Path $Central 'identity\ROUTINE.md')   (Join-Path $ExamplesDir 'identity-routine.template.md')
+    Seed-If-Missing (Join-Path $Central 'rules\universal.md')     (Join-Path $ExamplesDir 'rules-universal.template.md')
+    Seed-If-Missing (Join-Path $Central 'rules\public-repo.md')  (Join-Path $ExamplesDir 'rules-public-repo.template.md')
+    Seed-If-Missing (Join-Path $Central 'rules\file-cleanup.md') (Join-Path $ExamplesDir 'rules-file-cleanup.template.md')
+    Seed-If-Missing (Join-Path $Central 'rules\safety.md')       (Join-Path $ExamplesDir 'rules-safety.template.md')
+    Seed-If-Missing (Join-Path $Central 'toolchain\paths.md')    (Join-Path $ExamplesDir 'toolchain-paths.template.md')
 
     # Initial state files
     $focusFile = Join-Path $Central 'handoff\shared-state\current-focus.md'
