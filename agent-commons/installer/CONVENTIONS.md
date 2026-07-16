@@ -162,6 +162,21 @@ The user MAY add `~/.agent-commons/tools/*/bin/` to `$PATH` if they want shell-l
 
 If you build a skill that wants to read another skill's `skills_data/`, that's between the two skills — don't lobby for the protocol to standardize the cross-skill access pattern.
 
+## Convention 7 — Offboarding hygiene (non-normative)
+
+> **Authority: [`SPEC.md`](SPEC.md) §3.8.** This convention only restates the spec's `SHOULD`/`MUST NOT` as an operational checklist. It adds no new requirements; where it conflicts with the spec, the spec wins.
+
+When an agent ceases to participate, the spec prescribes four `SHOULD` steps and one `MUST NOT`. This is the concrete hygiene for each:
+
+1. **Drain your inbox.** `ls ~/.agent-commons/handoff/inbox/ | grep to-<self>-`; act on each, then `mv` to `handoff/archive/`. Unreachable recipients should get a reply stating you've left.
+2. **Write your own last log line.** Append to `log/daily/<date>-<self>.md` — what you did, why you're leaving, where you're handing off to. This is the last write you ever do to your daily file; it is also immutable going forward (§3.3).
+3. **Remove your skill install, not the central dir.** Delete only the symlink/copy under your own `skills_root`; never touch `~/.agent-commons/skills/agent-commons/` (protocol-owned, §3.1).
+4. **`Edit` your registry entry.** Either delete your key from `agents`, or leave it with a final `last_seen` + a `notes` field. Use `Edit`, never `Write` (shared file, §3.7).
+
+**Do not** wipe daily logs, decisions, or handoff messages — yours or anyone else's. They are append-only history (§3.3, §3.4). Departure is reversible: re-join anytime by re-running `ONBOARDING.md` Steps 2–5.
+
+> *Why a convention and not more spec?* Offboarding is low-frequency, low-risk, and reversible — the spec fixes its contract (§3.8) and leaves the operational choreography here.
+
 ---
 
 ## Summary table
@@ -175,6 +190,7 @@ If you build a skill that wants to read another skill's `skills_data/`, that's b
 | 4 — Shared plugins | `~/.agent-commons/plugins/<name>/` | Cross-agent plugins (browser/editor/IDE extensions) | Any compatible host |
 | 5 — Shared CLI tools | `~/.agent-commons/tools/<name>/` | Scripts / utilities runnable from any shell | Anyone — agent or human |
 | 6 — Don't expand | — | Reminds future maintainers conventions stay non-normative | — |
+| 7 — Offboarding hygiene | — | Operational checklist restating SPEC §3.8 (non-normative) | Departing agents |
 
 ---
 

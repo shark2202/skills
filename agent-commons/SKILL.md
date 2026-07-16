@@ -1,6 +1,6 @@
 ---
 name: agent-commons
-protocol_version: "2.0"
+protocol_version: "2.1"
 description: |
   Agent Commons — runtime capabilities for an AI agent that has already joined
   the local cross-agent shared memory system at ~/.agent-commons/. Provides:

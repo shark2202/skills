@@ -1,6 +1,6 @@
 {
   "name": "agent-commons",
-  "protocol_version": "2.0",
+  "protocol_version": "2.1",
   "spec_url": "agent-commons/installer/SPEC.md",
   "onboarding_url": "agent-commons/installer/ONBOARDING.md",
   "skill_url": "agent-commons/SKILL.md",
@@ -50,7 +50,7 @@
     "inbox_pattern": "handoff/inbox/from-{src}-to-{dst}-{topic}.md"
   },
   "lifecycle": {
-    "_note": "Onboarding (one-time) and runtime (recurring) are deliberately decoupled. Agents read ONBOARDING.md exactly once when joining; afterwards the runtime SKILL.md handles all ongoing operations.",
+    "_note": "Onboarding (one-time), runtime (recurring), and departure (reversible) are three decoupled lifecycle phases. Agents read ONBOARDING.md exactly once when joining; afterwards the runtime SKILL.md handles all ongoing operations; departure is prescribed by SPEC §3.8.",
     "onboarding": {
       "ref": "ONBOARDING.md",
       "frequency": "once per agent (or after major protocol-version bump)",
@@ -62,6 +62,12 @@
       "frequency": "every relevant turn for an already-joined agent",
       "trigger": "any operation requiring shared identity, rules, current-focus, inbox, daily log, or handoff",
       "summary": "Read shared identity/rules; read/update current-focus; check inbox / send messages; append daily log; refresh last_seen"
+    },
+    "departure": {
+      "ref": "SPEC.md §3.8",
+      "frequency": "when an agent ceases to participate (reversible)",
+      "trigger": "agent is retired / replaced / user requests departure",
+      "summary": "Process inbox; append final daily-log entry; remove own runtime skill install; Edit registry to delete/finalize own entry. MUST NOT delete append-only history."
     }
   },
   "actions": {
@@ -97,6 +103,10 @@
     "update_install": {
       "summary": "Tier 2 (copy) ONLY: mirror-resync local snapshot from central (rsync --delete / Robocopy /MIR / staged temp-dir + atomic swap). Naive 'cp -R' is a protocol violation — it leaves ghost files for upstream deletes/renames. After resync, re-run the closed-loop trigger test (see ONBOARDING.md Step 4.B). On a major-version-bump (manifest protocol_version major > registered protocol_version major), redirect the agent to re-execute ONBOARDING.md instead.",
       "write_mode": "mirror"
+    },
+    "depart": {
+      "summary": "Cease participation per SPEC §3.8: process inbox, append final daily-log entry, remove own runtime skill install, Edit registry to delete/finalize own entry. MUST NOT delete or modify append-only history (daily logs, decisions, handoff messages).",
+      "write_mode": "mixed"
     }
   },
   "install_tiers": [
@@ -139,7 +149,8 @@
     "Convention over framework: ≤200 LOC of code; the README is the product",
     "Self-onboarding: agents install themselves, the protocol does not push code to them",
     "Triggerable = done: install is only complete when the runtime can actually invoke the skill",
-    "Convention layer is optional: skills/skills_data/mcp/plugins/tools are RECOMMENDED locations, not protocol requirements"
+    "Convention layer is optional: skills/skills_data/mcp/plugins/tools are RECOMMENDED locations, not protocol requirements",
+    "Portable as a filesystem unit: back up and migrate ~/.agent-commons/ as one directory; machine-bound registry fields (home, skills_root) are reconciled by the owning agent after a move (SPEC §5.6)"
   ],
   "supported_agents": [
     "Any AI agent that can read filesystem and follow natural-language instructions. Symlink support is preferred but not required (copy and readonly fallbacks exist)."

@@ -98,7 +98,7 @@ EOF
   if [ ! -f "$CENTRAL/registry.json" ]; then
     cat > "$CENTRAL/registry.json" <<'EOF'
 {
-  "protocol_version": "2.0",
+  "protocol_version": "2.1",
   "agents": {}
 }
 EOF

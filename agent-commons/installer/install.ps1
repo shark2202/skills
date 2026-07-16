@@ -119,7 +119,7 @@ $null = & {
     if (-not (Test-Path $registry)) {
         @"
 {
-  "protocol_version": "2.0",
+  "protocol_version": "2.1",
   "agents": {}
 }
 "@ | Set-Content -Path $registry -Encoding UTF8

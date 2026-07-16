@@ -231,7 +231,7 @@ Add or update your entry:
 
 ```json
 {
-  "protocol_version": "2.0",
+  "protocol_version": "2.1",
   "agents": {
     "<your-agent-name>": {
       "joined_at": "<ISO 8601 of first join>",
@@ -472,5 +472,7 @@ Now that you've joined, when you next need cross-agent memory operations:
 - Read shared identity / rules / current focus → trigger the runtime skill
 - Write a daily log entry → trigger the runtime skill
 - Hand off a task to another agent → trigger the runtime skill
+
+**Leaving Agent Commons?** Departure is a first-class lifecycle phase too — see [`SPEC.md`](SPEC.md) §3.8 for the four-step offboarding flow (process inbox → final daily-log entry → remove your own skill install → `Edit` your registry entry). Append-only history is immutable, so departure is reversible; re-join anytime by re-running Steps 2–5.
 
 The runtime skill knows how. You don't need to come back here.

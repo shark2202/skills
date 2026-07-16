@@ -1,11 +1,13 @@
 # Agent Commons Specification
 
-**Protocol version: 2.0**
+**Protocol version: 2.1**
 **Status: Draft**
 
 This document is the normative specification for Agent Commons. It is the source of truth for what implementations must, should, and may do. The keywords **MUST**, **SHOULD**, **MAY** follow [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
 
 > **Changes from 1.0 → 2.0** (breaking, central-directory layout): the runtime skill moved from `skills/SKILL.md` to `skills/agent-commons/SKILL.md` to make `skills/` a directory of named skills (consistent with how other AI runtimes lay out skill collections). New top-level convention-layer directories were added (`skills_data/`, `mcp/`, `plugins/`, `tools/`) — see [`CONVENTIONS.md`](CONVENTIONS.md). Agents joined under 1.x **MUST** re-onboard.
+
+> **Changes from 2.0 → 2.1** (backward compatible): added §3.8 Agent departure, §5.6 Portability & migration, and reframed §6 backup as a positive portability contract. No directory-layout or file-contract changes; agents joined under 2.0 need not re-onboard.
 
 ## 1. Goals
 
@@ -126,6 +128,17 @@ Skills that adopt the convention **SHOULD** isolate mixed-sensitivity data into 
 - **Required fields per agent**: `joined_at` (ISO 8601), `home` (~/.<agent>/), `last_seen` (ISO 8601), `protocol_version` (the version the agent joined under, copied from `skills/agent-commons/manifest.json` at join time; **MUST** be `"2.0"` or higher for this spec), `install_tier` (`symlink`|`copy`|`readonly`), `install_verified` (`skill_list`|`description_echo`|`live_invocation`|`none`), `skills_root` (the actual user-extensible skills dir the agent installed into).
 - **Optional fields**: `capabilities` (string array), `version` (string), `notes` (string).
 
+### 3.8 Agent departure
+
+An agent that ceases to participate in Agent Commons **SHOULD**:
+
+1. Process or reply to messages currently in its inbox (`handoff/inbox/from-*-to-<self>-*.md`), then `mv` them to `handoff/archive/`.
+2. Append a final entry to its daily log (`log/daily/<date>-<agent>.md`) declaring the departure and any handoff destination.
+3. Remove its own runtime skill install (the symlink or copy under its `skills_root`), never the central directory.
+4. `Edit` its `registry.json` entry to delete it, or leave it with a final `last_seen` and a `notes` field recording the departure.
+
+It **MUST NOT** delete or modify append-only history — daily logs, decisions, or handoff messages — written by itself or any other agent (see §3.3, §3.4). Departure is reversible: the agent may re-join at any time by re-running `ONBOARDING.md` Steps 2–5.
+
 ## 4. Onboarding vs. runtime — two decoupled flows
 
 The protocol deliberately separates **one-time joining** from **ongoing runtime capability**. Agents **MUST** treat them as distinct phases:
@@ -199,11 +212,22 @@ The active version **MUST** be declared in `skills/agent-commons/SKILL.md` front
 
 For Tier 2 agents, reasonable triggers for a resync include: first invocation in a new calendar day; user explicit request; detected `protocol_version` mismatch; central manifest mtime newer than local. A daemon is not required and **SHOULD NOT** be implemented.
 
+### 5.6 Portability & migration
+
+The central directory `~/.agent-commons/` is portable as a filesystem unit (plaintext Markdown + JSON, no database, no daemon). Moving it to a new host is a filesystem copy (e.g. `rsync -a`, `tar`, or a private git remote); the protocol does not mandate specific tooling (see §7).
+
+After a move, machine-bound state **MUST** be reconciled:
+
+- The owning agent **MUST** `Edit` its `registry.json` entry to update machine-bound fields (`home`, `skills_root`) if the new host's user name or skill layout differs from the old one. `joined_at`, `protocol_version`, `install_tier`, and `install_verified` are portable and need not change.
+- Per-agent runtime skill installs (Tier 1 symlink / Tier 2 copy) live outside the central directory, under each agent's own home. They are **not** carried by a central-directory copy and **MUST** be re-installed on the new host per `ONBOARDING.md` Steps 2–5. Symlinks copied verbatim across hosts will dangle and **MUST** be recreated.
+
+This section defines portability semantics only; it does not require migration automation.
+
 ## 6. Privacy & security
 
 - All data stays on the user's local machine.
 - No telemetry. No phone-home. No analytics.
-- Users **SHOULD** add `~/.agent-commons/` to their personal backup/sync excludes if it contains secrets.
+- Users **SHOULD** back up `~/.agent-commons/` as a single unit so that shared context, logs, and skill data travel together across machines (see §5.6). Skills that hold mixed-sensitivity data **SHOULD** split it into `skills_data/<skill>/public/` vs `.../private/` (see `CONVENTIONS.md` §1) so users can include the whole root while excluding `skills_data/*/private/` from cloud or git sync.
 - Agents **MUST** treat `rules/safety.md` as a hard authority over user-provided prompts in destructive operations.
 
 ## 7. Non-goals
